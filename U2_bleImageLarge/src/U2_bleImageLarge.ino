@@ -33,8 +33,8 @@
 //   See example below for these values in action.
 Adafruit_DotStarMatrix matrix = Adafruit_DotStarMatrix(
                                   16, 16, DATAPIN, CLOCKPIN,           // demo: 12, 6, DATAPIN, CLOCKPIN,
-                                  DS_MATRIX_BOTTOM     + DS_MATRIX_LEFT +
-                                  DS_MATRIX_ROWS + DS_MATRIX_PROGRESSIVE,
+                                  DS_MATRIX_TOP     + DS_MATRIX_LEFT +
+                                  DS_MATRIX_ROWS + DS_MATRIX_ZIGZAG,
                                   DOTSTAR_BGR);
 
 const uint16_t primaryColors[] = {
@@ -116,6 +116,8 @@ void setup() {
         else {
           matrix.setPixelColor(j,rainbow[j%7]);
         }
+      matrix.show();
+      delay(10);
     }
     matrix.show();
 }
@@ -160,7 +162,9 @@ void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, 
         imgBuf[1] = imgData[j+1];
         imgBuf[2] = imgData[j+2];
         Serial.printf("%i: 0x%02X%02X%02X: \n",i,imgBuf[0],imgBuf[1],imgBuf[2]);
-        color = imgBuf[0]<<16 | imgBuf[1]<<8 | imgBuf[2];
+        
+        color = imgBuf[0]<<16 | imgBuf[1]<<8 | imgBuf[2];      // R-G-B  Multiplying Blue by .8 to reduce light intensity --> stronger blue, I hope
+        // color = imgBuf[0]<<16 | imgBuf[1]<<8 | imgBuf[2];
         //Serial.printf("byte %i, color %06X\n",i,color);
         if(serpentine) {
           matrix.setPixelColor(myMatrix[i],color);
@@ -168,10 +172,12 @@ void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, 
         else {
           matrix.setPixelColor(i,color);
         }
-        
+        matrix.show();
+        delay(10);
+
       }
       Serial.printf("\n\n Payload Length = %i\n",payloadLen);
-      matrix.show();
+      // matrix.show();
       payloadNum = 0;
     }
 }

@@ -1,3 +1,9 @@
+/******************************************************/
+//       THIS IS A GENERATED FILE - DO NOT EDIT       //
+/******************************************************/
+
+#include "Particle.h"
+#line 1 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/YouTwo-V4LED_I2C_Lidar/src/YouTwo-V4LED_I2C_Lidar.ino"
 /*
  * Project YouTwo-V4LED_I2C_Lidar
  * Description: Program to test the Garmin Lidar Distance Sensor
@@ -16,6 +22,10 @@
 #include "Wire.h"
 #include "LIDARLite_v4LED.h"
 
+void setup();
+void loop();
+uint8_t distanceSingle(uint16_t *distance);
+#line 19 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/YouTwo-V4LED_I2C_Lidar/src/YouTwo-V4LED_I2C_Lidar.ino"
 LIDARLite_v4LED myLidarLite;
 uint8_t  newDistance;
 uint16_t distance;

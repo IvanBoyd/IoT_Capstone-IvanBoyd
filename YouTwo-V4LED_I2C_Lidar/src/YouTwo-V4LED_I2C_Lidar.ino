@@ -1,5 +1,5 @@
 /*
- * Project YouTwo-V4LED_I2C_Lidar
+ * Project YouTwo-V4LED_I2C_Lidar.ino
  * Description: Program to test the Garmin Lidar Distance Sensor
  * Author:      Ivan Boyd
  * Date:        11/29/21

@@ -5,7 +5,7 @@
 #include "Particle.h"
 #line 1 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/YouTwo-V4LED_I2C_Lidar/src/YouTwo-V4LED_I2C_Lidar.ino"
 /*
- * Project YouTwo-V4LED_I2C_Lidar
+ * Project YouTwo-V4LED_I2C_Lidar.ino
  * Description: Program to test the Garmin Lidar Distance Sensor
  * Author:      Ivan Boyd
  * Date:        11/29/21

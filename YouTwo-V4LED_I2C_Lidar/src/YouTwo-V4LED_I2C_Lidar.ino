@@ -1,6 +1,8 @@
 /*
  * Project YouTwo-V4LED_I2C_Lidar.ino
- * Description: Program to test the Garmin Lidar Distance Sensor
+ * Description: Basic Test of the Garmin Lidar Distance Sensor returning distance
+ *                values in centimetres
+ *                1 cm = 0.39370079 inch, 1 meter = 39.3700787 inches & 1.0936133 yards, 1 mile = 1609.344 meters
  * Author:      Ivan Boyd
  * Date:        11/29/21
  */

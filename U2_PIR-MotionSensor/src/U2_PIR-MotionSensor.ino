@@ -20,7 +20,7 @@ int timeSeconds = 10;
 
 const int NEOPIXPIN     = D8;
 const int NEOPIXEL_NUM  = 100;
-int  low = 1, med = 50, high = 145;         // NeoPix brightness 0-155, 145 bout high enuf 
+int  low = 1, med = 50, high = 145;         // NeoPix brightness 0-255, 145 is too bright for me 
 int i, j;
 
 Adafruit_NeoPixel fairyNP(NEOPIXEL_NUM, NEOPIXPIN, PIXEL_TYPE);
@@ -74,17 +74,17 @@ void setup() {
 
   // Set Up for Fairy Lights
   Serial.printf("Starting up the fairy lights \n");
-  delay(2000);
+  delay(500);
   fairyNP.begin();
   fairyNP.clear();
-  fairyNP.setBrightness(100);
+  fairyNP.setBrightness(30);
   for (i = 0; i < 100; i++) {
     fairyNP.setPixelColor(i, random(0,255),  random(0,255),  random(0,255));
     fairyNP.show();
     delay(40);
   }
-  fairyNP.show();
-  delay(2000);
+  // fairyNP.show();
+  // delay(2000);
   fairyNP.clear();
   fairyNP.show();
   //                    E N C O D E R    S E T U P
@@ -93,8 +93,8 @@ void setup() {
     enc_P     = 0;    //assign enc to Pix Ring vars for Map function
     enc_Low   = 0;    // enc_P, enc_Low, enc_High, pix_Low, pix_High, new_Pix_P
     enc_High  = 95;
-    pix_Low   = 0;
-    pix_High  = 11;
+    pix_Low   = 2;
+    pix_High  = 100;
     new_Pix_P = 0;
      // enc_P, enc_Low, enc_High, pix_Low, pix_High, new_Pix_P
   if (position>enc_High) {
@@ -106,24 +106,23 @@ void setup() {
 
   // new_Pix_P = map(myEnc.read(), );
   new_Pix_P = map(myEnc.read(), enc_Low, enc_High, pix_Low, pix_High);
-  
+  last_Pos = myEnc.read();
 }
 
 void loop() {
 //             N E W    E N C O D E R     S T U F F
 position = myEnc.read();  
-Serial.printf("Encoder position: %i \n",position);
+// Serial.printf("Encoder position: %i \n",position);
   //      myEnc.write(GRNPIN);
   if (position == last_Pos) {    //dial has not moved
-       Serial.printf("NO Movement: Im in pos = %i last_Pos part of if: %i \n", position, last_Pos);
-       delay(T);
+      //  Serial.printf("NO Movement: Im in pos = %i last_Pos part of if: %i \n", position, last_Pos);
+      //  delay(T);
   }
   else {                 // dial has moved so  change NeoPix pos & light itprint to screen
-    Serial.printf("YES!! Movement: I was in last_pos/: %i  Now Pos is: %i \n", last_Pos, position);
-    Serial.printf("Imagine Neo Pixel light up: %i \n",position);
-    Serial.printf("Green Pin encoder pos: %i \n",position);
+    // Serial.printf("YES!! Movement: I was in last_pos/: %i  Now Pos is: %i \n", last_Pos, position);
+    // Serial.printf("Imagine Neo Pixel light up: %i \n",position);
     last_Pos = myEnc.read();
-    //    delay(T);
+      //  delay(T);
     // enc_P, enc_Low, enc_High, pix_Low, pix_High, new_Pix_P
     if (position>enc_High) {
       myEnc.write(enc_High);
@@ -141,18 +140,19 @@ Serial.printf("Encoder position: %i \n",position);
       myEnc.write(enc_Low);
     }
   }
+  new_Pix_P = map(myEnc.read(), enc_Low, enc_High, pix_Low, pix_High);
+  // Serial.printf("mapping Neo pix's:  enc_Low: %i  enc_High %i pix_Low %i  pix_High %i\n",enc_Low, enc_High, pix_Low, pix_High);
+  // Serial.printf("mapping Neo pix's: Position %i maps to Neo Pixel: %i \n",position, new_Pix_P);
 //         end    N E W    E N C O D E R     S T U F F  end
 
   fairyNP.begin();
-  // Current time
-  now = millis();
+  now = millis();               // Current time
   // Turn off the LED after the number of seconds defined in the timeSeconds variable
   if(startTimer && (now - lastTrigger > (timeSeconds*1000))) {
-    Serial.println("Motion stopped...");
+    // Serial.println("Motion stopped...");
     // digitalWrite(led, LOW);
     digitalWrite(REDPIN, LOW);
     digitalWrite(GRNPIN, HIGH);
-
     startTimer = false;
     // turn off Fairy Lights
     fairyNP.clear();
@@ -161,7 +161,8 @@ Serial.printf("Encoder position: %i \n",position);
   }
   if (fairyLightsOn)  {
     digitalWrite(GRNPIN, LOW);
-    fairyNP.setBrightness(random(1,4));
+    // fairyNP.setBrightness(random(1,4));
+    fairyNP.setBrightness(random(1,new_Pix_P));
     fairyNP.setPixelColor(random(0,100), random(0,255), random(0,255), random(0,255));
     fairyNP.show();
     delay(random(50,100));        // *** needs to be embedded in timer function
@@ -176,7 +177,7 @@ void runPRTchk() {               // Start print to monitor
 }
 
 void detectsMovement() {
- Serial.println("MOTION DETECTED!!!");
+//  Serial.println("MOTION DETECTED!!!");
  digitalWrite(REDPIN, HIGH);
  // Turn on Fairy Lights
  fairyLightsOn = true;

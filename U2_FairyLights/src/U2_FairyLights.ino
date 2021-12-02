@@ -1,8 +1,10 @@
 /*
- * Project U2_FairyLights
- * Description:
- * Author:
- * Date:
+ * Project        U2_FairyLights
+ * Description:   Basic Fairy Light Test, Randomly show all 100 NeoPixel Fairy lights
+ *                at random colors and random intensity
+ *                    - Has been incorporated under U2_PIR-MotionSensor.ino
+ * Author:        Ivan Boyd
+ * Date:          11/29/2021
  */
 
 #include "neopixel.h"
@@ -13,6 +15,7 @@ const int NEOPIXPIN     = D8;
 const int NEOPIXEL_NUM  = 100;
 int  low = 1, med = 50, high = 145;         // NeoPix brightness 0-155, 145 bout high enuf 
 int i, j;
+// int new_Pix_P = 0;
 
 Adafruit_NeoPixel fairyNP(NEOPIXEL_NUM, NEOPIXPIN, PIXEL_TYPE);
 SYSTEM_MODE(SEMI_AUTOMATIC); //Using BLE and not Wifi
@@ -21,6 +24,7 @@ void setup() {
   Serial.begin(9600);
   waitFor(Serial.isConnected, 5000);  
   Serial.printf("Starting up the fairy lights \n");
+
   delay(2000);
   fairyNP.begin();
   fairyNP.clear();
@@ -34,6 +38,27 @@ void setup() {
   delay(2000);
   fairyNP.clear();
   fairyNP.show();
+
+  // //        E N C O D E R    S E T U P
+  // position = myEnc.read();
+  // last_Pos    =  -999;
+  //   enc_P     = 0;    //assign enc to Pix Ring vars for Map function
+  //   enc_Low   = 0;    // enc_P, enc_Low, enc_High, pix_Low, pix_High, new_Pix_P
+  //   enc_High  = 95;
+  //   pix_Low   = 0;
+  //   pix_High  = 11;
+  //   new_Pix_P = 0;
+  //    // enc_P, enc_Low, enc_High, pix_Low, pix_High, new_Pix_P
+  // if (position>enc_High) {
+  //   myEnc.write(enc_High);
+  // }
+  // if (position<enc_Low) {
+  //   myEnc.write(enc_Low);
+  // }
+
+  // // new_Pix_P = map(myEnc.read(), );
+  // new_Pix_P = map(myEnc.read(), enc_Low, enc_High, pix_Low, pix_High);
+   
 }
 
 

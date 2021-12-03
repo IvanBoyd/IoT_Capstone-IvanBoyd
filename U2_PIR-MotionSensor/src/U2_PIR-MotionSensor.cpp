@@ -13,8 +13,6 @@
  * Author:      Ivan Boyd
  * Date:        11/30/21
  * 
- * STATUS: Encoder not moving based on enc_read, even tho the value changes its not goint
- * into the else loop based on a change of value
  */
 
 //======================================
@@ -23,31 +21,44 @@ void setup();
 void loop();
 void runPRTchk();
 void detectsMovement();
-#line 16 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/U2_PIR-MotionSensor/src/U2_PIR-MotionSensor.ino"
+void flSetUp();
+void flSub();
+void encLedSetUp();
+#line 14 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/U2_PIR-MotionSensor/src/U2_PIR-MotionSensor.ino"
 int timeSeconds = 10;
 #include "neopixel.h"
 // #define PIXEL_TYPE WS2812B 
 #define PIXEL_TYPE SK6812RGBW
 
-const int NEOPIXPIN     = D8;
-const int NEOPIXEL_NUM  = 100;
-int  low = 1, med = 50, high = 145;         // NeoPix brightness 0-255, 145 is too bright for me 
-int i, j;
+const int FLPIXPIN     = D8;                // Fairy Light Pix Pin 
+const int FLPIXEL_NUM  = 100;               // Fairy Light Pix Number 
+int   FLlow = 1, FLmed = 50, FLhigh = 145;   // NeoPix brightness 0-255, 145 is too bright for me 
+int   FLi, FLj;
+// const int NEOPIXPIN     = D8;
+// const int NEOPIXEL_NUM  = 100;
+// int  low = 1, med = 50, high = 145;         // NeoPix brightness 0-255, 145 is too bright for me 
+// int i, j;
 
-Adafruit_NeoPixel fairyNP(NEOPIXEL_NUM, NEOPIXPIN, PIXEL_TYPE);
+
+Adafruit_NeoPixel fairyNP(FLPIXEL_NUM, FLPIXPIN, PIXEL_TYPE);
 bool fairyLightsOn = false;
+
 // Set GPIOs for LED and PIR Motion Sensor
 const int led = 16;
 const int motionSensor = D7;
 
 // Timer: Auxiliary variables
-unsigned long now = millis();
-unsigned long lastTrigger = 0;
-boolean startTimer = false;
+// unsigned long now = millis();
+// unsigned long lastTrigger = 0;
+// boolean startTimer = false;
+
+unsigned long FLnow         = millis();
+unsigned long FLlastTrigger = 0;
+bool       FLstartTimer  = false;
 
 // Encoder Header 
-int  pinA =  A5,              pinB  = A4,
-     position = 0,            last_Pos = 0
+int  pinA     =  A5,          pinB      = A4,
+     position = 0,            last_Pos  = 0
      ; 
 int enc_P   = 0,              enc_Low = 0,          enc_High  = 0,       //set enc to Pix Ring vars for Map function
     pix_Low   = 0,            pix_High  = 0,        new_Pix_P = 0        // enc = encoder, pix = pixel ring
@@ -56,8 +67,7 @@ int enc_P   = 0,              enc_Low = 0,          enc_High  = 0,       //set e
 const int SWITCHPIN = A0,     GRNPIN    = A2,       REDPIN    = A1,      T    = 1000;
               //pinmodes  22, input, 21 & 20 output to pixels,  21  output to pixels   20 output to pixels
               // PIXPIN    = A3,     // Neopixels neeeds a lib but no pin mode
-
-                  
+                
 Encoder myEnc(pinB,pinA);
  
 SYSTEM_MODE(SEMI_AUTOMATIC); //Using BLE and not Wifi
@@ -67,37 +77,17 @@ void setup() {
   // Serial port for debugging purposes
   Serial.begin(9600);
   runPRTchk();        // Start print to monitor
-  lastTrigger = millis();
+  FLlastTrigger = millis();
 
-  
   // PIR Motion Sensor mode INPUT_PULLUP
   pinMode(motionSensor, INPUT);
   // Set motionSensor pin as interrupt, assign interrupt function and set RISING mode
   attachInterrupt(motionSensor, detectsMovement, RISING);
 
   // Set LED to LOW
-  pinMode(led, OUTPUT);
-  pinMode(GRNPIN, OUTPUT);
-  pinMode(REDPIN, OUTPUT);
-  digitalWrite(led, LOW);
-  digitalWrite(GRNPIN, HIGH);
-  digitalWrite(REDPIN, LOW);
+  encLedSetUp();       // Set Up for Encoder LED's
+  flSetUp();       // Set Up for Fairy Lights
 
-  // Set Up for Fairy Lights
-  Serial.printf("Starting up the fairy lights \n");
-  delay(500);
-  fairyNP.begin();
-  fairyNP.clear();
-  fairyNP.setBrightness(30);
-  for (i = 0; i < 100; i++) {
-    fairyNP.setPixelColor(i, random(0,255),  random(0,255),  random(0,255));
-    fairyNP.show();
-    delay(40);
-  }
-  // fairyNP.show();
-  // delay(2000);
-  fairyNP.clear();
-  fairyNP.show();
   //                    E N C O D E R    S E T U P
   position = myEnc.read();
   last_Pos    =  -999;
@@ -154,17 +144,58 @@ position = myEnc.read();
   new_Pix_P = map(myEnc.read(), enc_Low, enc_High, pix_Low, pix_High);
   // Serial.printf("mapping Neo pix's:  enc_Low: %i  enc_High %i pix_Low %i  pix_High %i\n",enc_Low, enc_High, pix_Low, pix_High);
   // Serial.printf("mapping Neo pix's: Position %i maps to Neo Pixel: %i \n",position, new_Pix_P);
-//         end    N E W    E N C O D E R     S T U F F  end
+  //         end    N E W    E N C O D E R     S T U F F  end
 
+  flSub();        // turns on FL's when PIR sensor is activated
+}
+
+// Start print to monitor
+void runPRTchk() {               
+  Serial.begin(9600);
+  // while(!Serial);
+  waitFor(Serial.isConnected, 15000); 
+  Serial.printf("Printer initialized\n");
+  delay(1000);
+}
+
+void detectsMovement() {
+//  Serial.println("MOTION DETECTED!!!");
+ digitalWrite(REDPIN, HIGH);
+ // Turn on Fairy Lights
+ fairyLightsOn    = true;
+ FLstartTimer     = true;
+ FLlastTrigger    = millis();
+}
+
+// Set Up for Fairy Lights
+void flSetUp()  {
+  Serial.printf("Starting up the fairy lights \n");
+  // delay(500);
   fairyNP.begin();
-  now = millis();               // Current time
+  fairyNP.clear();
+  fairyNP.setBrightness(30);
+  for (FLi = 0; FLi < 100; FLi++) {
+    fairyNP.setPixelColor(FLi, random(0,255),  random(0,255),  random(0,255));
+    fairyNP.show();
+    delay(30);
+  }
+  // fairyNP.show();
+  // delay(2000);
+  fairyNP.clear();
+  fairyNP.show();
+}
+
+// turns on FL's (fairy lights) when PIR sensor is activated
+void flSub() {
+    // fairyNP.begin();
+  FLnow = millis();               // Current time
   // Turn off the LED after the number of seconds defined in the timeSeconds variable
-  if(startTimer && (now - lastTrigger > (timeSeconds*1000))) {
+  if(FLstartTimer && (FLnow - FLlastTrigger > (timeSeconds*1000))) {
     // Serial.println("Motion stopped...");
     // digitalWrite(led, LOW);
     digitalWrite(REDPIN, LOW);
     digitalWrite(GRNPIN, HIGH);
-    startTimer = false;
+    FLstartTimer = false;
     // turn off Fairy Lights
     fairyNP.clear();
     fairyNP.show();
@@ -179,19 +210,12 @@ position = myEnc.read();
     delay(random(50,100));        // *** needs to be embedded in timer function
   }
 }
-
-void runPRTchk() {               // Start print to monitor
-  Serial.begin(9600);
-  while(!Serial);
-  Serial.printf("Printer initialized\n");
-  delay(1000);
-}
-
-void detectsMovement() {
-//  Serial.println("MOTION DETECTED!!!");
- digitalWrite(REDPIN, HIGH);
- // Turn on Fairy Lights
- fairyLightsOn = true;
- startTimer = true;
- lastTrigger = millis();
-}
+  // Set LED to LOW
+  void encLedSetUp() {
+    pinMode(led, OUTPUT);
+    pinMode(GRNPIN, OUTPUT);
+    pinMode(REDPIN, OUTPUT);
+    digitalWrite(led, LOW);
+    digitalWrite(GRNPIN, HIGH);
+    digitalWrite(REDPIN, LOW);
+  }

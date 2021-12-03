@@ -53,6 +53,14 @@ void setup()
 
 //  *****************  B E G I N     M A I N    V O I D    L O O P    **********
 void loop()   {
+  lidarSub();
+}
+//  *****************  E N D     M A I N    V O I D    L O O P    **********
+
+
+//  *****************    B E G I N     F U N C T I O N S    **********
+
+void lidarSub()    {
   newDistance = distanceSingle(&distance);
   NPdistance  = distance;
   inRange = ((NPdistance > 0) && (NPdistance < maxDist));
@@ -85,11 +93,6 @@ void loop()   {
   if(dBug) {delay(500);}
   }
 }
-//  *****************  E N D     M A I N    V O I D    L O O P    **********
-
-
-//  *****************    B E G I N     F U N C T I O N S    **********
-
 void npSetUp()  {
   NEO_Pix.begin();
   NEO_Pix.setBrightness(5); 

@@ -140,7 +140,7 @@ void runPRTchk() {
   Serial.begin(9600);
   // while(!Serial);
   waitFor(Serial.isConnected, 15000); 
-  Serial.printf("Printer initialized\n");
+  Serial.printf("Printer initialized\n"); 
   delay(1000);
 }
 

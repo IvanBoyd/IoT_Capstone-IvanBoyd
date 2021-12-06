@@ -18,6 +18,8 @@ void setup();
 void loop();
 void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, void* context);
 void fillMyMatrix(int *myMat);
+void clearMatrix();
+void clearMatrixByPix();
 #line 12 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/U2_bleImageLarge/src/U2_bleImageLarge.ino"
 #define NUMPIXELS 256 // Number of LEDs in strip
 #include "SPI.h"
@@ -25,10 +27,13 @@ void fillMyMatrix(int *myMat);
 #include "Adafruit_DotStarMatrix.h"
 // #include "TomThumb.h"
 #include "dotstar.h"
-#define DATAPIN   12
-#define CLOCKPIN  13
+#define DATAPIN   12                  // use const int PIXEL_PIN=D2 for NeoPix
+#define CLOCKPIN  13                  
 #define SHIFTDELAY 100
 #define BRIGHTNESS 20
+
+const int FASTFILL  = 2,  SLOWFILL  = 10,   MEDFILL = 5;
+// This is with DotStar, use #define PIXEL_TYPE WS2812B for NeoPix
 
 //  *** begin dotstar header ***
 // param 1 = matrix width, param 2 = matrix height, param 3 = datapin, param 4 = clockpin
@@ -41,8 +46,9 @@ void fillMyMatrix(int *myMat);
 //   DS_MATRIX_PROGRESSIVE, DS_MATRIX_ZIGZAG: all rows/columns proceed
 //     in the same order, or alternate lines reverse direction; pick one.
 //   See example below for these values in action.
+
 Adafruit_DotStarMatrix matrix = Adafruit_DotStarMatrix(
-                                  16, 16, DATAPIN, CLOCKPIN,           // demo: 12, 6, DATAPIN, CLOCKPIN,
+                                  16, 16, DATAPIN, CLOCKPIN,                // demo: 12, 6, DATAPIN, CLOCKPIN,
                                   DS_MATRIX_TOP     + DS_MATRIX_LEFT +
                                   DS_MATRIX_ROWS + DS_MATRIX_ZIGZAG,
                                   DOTSTAR_BGR);
@@ -64,15 +70,13 @@ const uint16_t adaColors[] = {
 };
 //  end dotstar header
 
-
 // Setup BLE UART
 const size_t UART_TX_BUF_SIZE = 12;
-uint8_t txBuf[UART_TX_BUF_SIZE];
+uint8_t txBuf[UART_TX_BUF_SIZE];        // array of 12 bytes (0-255, char's)
 uint8_t imgBuf[3];
 uint16_t i,j;
 
-// These UUIDs were defined by Nordic Semiconductor and are now the defacto standard for
-// UART-like services over BLE. Many apps support the UUIDs now, like the Adafruit Bluefruit app.
+// UUIDs by Nordic Semiconductor, defacto standard for UART-like services over BLE w UUIDs like Adafruit Bluefruit app.
 const BleUuid serviceUuid("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
 const BleUuid rxUuid("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
 const BleUuid txUuid("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
@@ -84,11 +88,10 @@ BleAdvertisingData data;
 // Setup NeoPixels
 const bool serpentine = true;   // set to true if neopixel matrix is wired in serpentine pattern
 const int PIXEL_COUNT=256;      // 16 x 16 neopixel matrix
-// const int PIXEL_PIN=D2;
-// #define PIXEL_TYPE WS2812B
+
 
 // Adafruit_NeoPixel matrix(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);
-//  see dotstar maxtrix creation above with same name
+//  see dotstar maxtrix creation above with same name, "matrix"
 
 int payloadNum;
 int myImage[PIXEL_COUNT];
@@ -98,38 +101,42 @@ int imgData[3*PIXEL_COUNT+7];     // 3 bytes per pix for RGB color
 SYSTEM_MODE(SEMI_AUTOMATIC); //Using BLE and not Wifi
 
 void setup() { 
-    Serial.begin();
-    waitFor(Serial.isConnected, 5000);  
-    delay(2000);
- 
-    // Initialize dotstar matrix (!neopixel) 
-    matrix.begin(); 
-    matrix.setBrightness(15);
+  Serial.begin();
+  waitFor(Serial.isConnected, 5000);  
+  delay(2000);
 
-    Serial.printf("Starting up BLE Connection \n");
+  // Initialize dotstar matrix (!neopixel) 
+  matrix.begin(); 
+  matrix.setBrightness(15);
 
-    BLE.on();
-    BLE.addCharacteristic(txCharacteristic);
-    BLE.addCharacteristic(rxCharacteristic);
-    data.appendServiceUUID(serviceUuid);
-    BLE.advertise(&data);
+  Serial.printf("Starting up BLE Connection \n");
+  BLE.on();
+  BLE.addCharacteristic(txCharacteristic);
+  BLE.addCharacteristic(rxCharacteristic);
+  data.appendServiceUUID(serviceUuid);
+  BLE.advertise(&data);
 
-    Serial.printf("Argon BLE Address: %s\n",BLE.address().toString().c_str());
+  Serial.printf("Argon BLE Address: %s\n",BLE.address().toString().c_str());
 
-    fillMyMatrix(myMatrix);
+  fillMyMatrix(myMatrix);
 
-    // Send rainbow test pattern to matrix to validate serpentine set correctly
-    for(j=0;j<PIXEL_COUNT;j++) {
-      if(serpentine) {
-        matrix.setPixelColor(myMatrix[j],rainbow[j%7]);
-        }
-        else {
-          matrix.setPixelColor(j,rainbow[j%7]);
-        }
-      matrix.show();
-      delay(10);
-    }
+  // Send rainbow test pattern to matrix to validate serpentine set correctly
+  for(j=0;j<PIXEL_COUNT;j++) {
+    if(serpentine) {
+      matrix.setPixelColor(myMatrix[j],rainbow[j%7]);
+      }
+      else {
+        matrix.setPixelColor(j,rainbow[j%7]);
+      }
     matrix.show();
+    delay(FASTFILL);
+  }
+  matrix.show();
+  // delay(2000);                    // Pause a half second then clear
+  // clearMatrix();
+  clearMatrixByPix();
+  matrix.show();
+  // delay(10);
 }
 
 // no void loop(), all action happens when data received from BLE
@@ -208,4 +215,20 @@ void fillMyMatrix(int *myMat) {
     }
   }
   return;
+}
+
+//   clears 16x16 Dot Pixel Matrix (serpentine order) 
+void clearMatrix()  {
+  for(j=0;j<PIXEL_COUNT;j++) {
+    matrix.setPixelColor(myMatrix[j],0x000000);
+  }
+}
+
+//   clears 16x16 Dot Pixel Matrix (serpentine order) 
+void clearMatrixByPix()  {
+  for(j=0;j<PIXEL_COUNT;j++) {
+    matrix.setPixelColor(myMatrix[j],0x000000);
+    matrix.show();
+    delay(FASTFILL);
+  }
 }

@@ -13,20 +13,69 @@
 #include "LIDARLite_v4LED.h"
 #include "neopixel.h"
 #include "Encoder.h"
-#define PIXEL_TYPE SK6812RGBW       // fairy lights
-#define PIXEL_TYPE WS2812B          // NeoPixels
-const int motionSensor = D7;        // PIR Room sensor
+#include "colors.h"
+#include "Adafruit_GFX.h"
+#include "Adafruit_DotStarMatrix.h"
+#include "dotstar.h"
+#define DATAPIN   12                  // use const int PIXEL_PIN=D2 for NeoPix
+#define CLOCKPIN  13                  
+#define SHIFTDELAY 100
+#define BRIGHTNESS 20
+
+#define FAIRY_PIXEL_TYPE SK6812RGBW       // fairy lights
+#define PIXEL_TYPE WS2812B                // NeoPixels
+// #define NUMPIXELS 256                     // Number of LEDs in DotPixel Matrix 
+const int motionSensor = D7;              // PIR Room sensor
 const int led = 16;
 
 bool  dBug    = true;
 int   dBugDel = 300;
 
+//                              ***  DOT STAR PIXEL HEADER  ***
+const int FASTFILL  = 2,  SLOWFILL  = 10,   MEDFILL = 5;
+// This is with DotStar, use #define PIXEL_TYPE WS2812B for NeoPix
+
+//  *** begin dotstar header ***
+// param 1 = matrix width, param 2 = matrix height, param 3 = datapin, param 4 = clockpin
+//  flags: 
+//   DS_MATRIX_TOP, DS_MATRIX_BOTTOM, DS_MATRIX_LEFT, DS_MATRIX_RIGHT:
+//     Position of the FIRST LED in the matrix; pick two, e.g.
+//     DS_MATRIX_TOP + DS_MATRIX_LEFT for the top-left corner.
+//   DS_MATRIX_ROWS, DS_MATRIX_COLUMNS: LEDs are arranged in horizontal
+//     rows or in vertical columns, respectively; pick one or the other.
+//   DS_MATRIX_PROGRESSIVE, DS_MATRIX_ZIGZAG: all rows/columns proceed
+//     in the same order, or alternate lines reverse direction; pick one.
+//   See example below for these values in action.
+
+Adafruit_DotStarMatrix matrix = Adafruit_DotStarMatrix(
+                                  16, 16, DATAPIN, CLOCKPIN,                // demo: 12, 6, DATAPIN, CLOCKPIN,
+                                  DS_MATRIX_TOP     + DS_MATRIX_LEFT +
+                                  DS_MATRIX_ROWS + DS_MATRIX_ZIGZAG,
+                                  DOTSTAR_BGR);
+const uint16_t primaryColors[] = {
+  matrix.Color(255, 0, 0), matrix.Color(0, 255, 0), matrix.Color(0, 0, 255)
+};
+
+const uint16_t adaColors[] = {
+  matrix.Color(255, 0, 0),   //A red
+  matrix.Color(255, 125, 0), //D orange
+  matrix.Color(200, 255, 0), //A yellowish
+  matrix.Color(0, 255, 0),   //F green
+  matrix.Color(0, 255, 225), //R blue
+  matrix.Color(150, 0, 255), //U purple
+  matrix.Color(255, 0, 220), //I pink
+  matrix.Color(255, 65, 0),  //T reddish
+  matrix.Color(255, 220, 0)  //! orange/yellow
+};
+//                              ***  END  - DOT STAR PIXEL HEADER -  END ***
+
+
 //                              ***  FAIRY LIGHT PIXEL HEADER  ***
 const int FLPIXPIN     = D8;                 // Fairy Light Pix Pin 
 const int FLPIXEL_NUM  = 100;                // Fairy Light Pix Number 
-int   FLlow = 1, FLmed = 50, FLhigh = 145;   // NeoPix brightness 0-255, 145 is too bright for me 
-int   FLi, FLj, timeSeconds = 10;
-Adafruit_NeoPixel fairyNP(FLPIXEL_NUM, FLPIXPIN, PIXEL_TYPE);
+int   FLlow = 1, FLmed = 50, FLhigh = 145;   // FL (Fairy Light), NeoPix brightness 0-255, 145 is too bright for me 
+int   FLi, FLj, timeSeconds = 10;            // FL (Fairy Light) 
+Adafruit_NeoPixel fairyNP(FLPIXEL_NUM, FLPIXPIN, FAIRY_PIXEL_TYPE);
 bool fairyLightsOn = false;
 unsigned long FLnow         = millis();
 unsigned long FLlastTrigger = 0;
@@ -36,8 +85,8 @@ bool          FLstartTimer  = false;
 const int NEOPIXPIN     = A3;
 const int NEOPIXEL_NUM  = 12;
 int   i, j;         // NeoPix brightness 0-155, 145 bout high enuf
-int   minNP = 0,          maxNP = 150,                         // lower/upper NP intensity
-      low = 3,            med = 50,         high = 127;        // for NP light intensity - var to hold mapped value from dist
+int   minNP = 0,          maxNP = 150,                          // lower/upper NP intensity
+      low = 3,            med   = 50,         high = 127;       // for NP light intensity - var to hold mapped value from dist
 int someColors[] = {0xFF0000, 0x0000FF, 0x8000080, 0xFFFF00, 0xFF0FF, 0x808080, 0xFFA500, 0xA52A2A, 0x008000, 0x808000};
                   //  RED,    BLUE,     PURPLE,     YELLOW,   MAGENTA,   GRAY,    ORANGE,  BROWN,    GREEN,   OLIVE
 Adafruit_NeoPixel NEO_Pix(NEOPIXEL_NUM, NEOPIXPIN, PIXEL_TYPE);
@@ -65,6 +114,34 @@ const int SWITCHPIN = A0,     GRNPIN    = A2,       REDPIN    = A1,      T    = 
                 
 Encoder myEnc(pinB,pinA);
 
+// Setup BLE UART
+const size_t UART_TX_BUF_SIZE = 12;
+uint8_t txBuf[UART_TX_BUF_SIZE];        // array of 12 bytes (0-255, char's)
+uint8_t imgBuf[3];
+uint16_t i,j;
+
+// UUIDs by Nordic Semiconductor, defacto standard for UART-like services over BLE w UUIDs like Adafruit Bluefruit app.
+const BleUuid serviceUuid("6E400001-B5A3-F393-E0A9-E50E24DCCA9E");
+const BleUuid rxUuid("6E400002-B5A3-F393-E0A9-E50E24DCCA9E");
+const BleUuid txUuid("6E400003-B5A3-F393-E0A9-E50E24DCCA9E");
+
+BleCharacteristic txCharacteristic("tx", BleCharacteristicProperty::NOTIFY, txUuid, serviceUuid);
+BleCharacteristic rxCharacteristic("rx", BleCharacteristicProperty::WRITE_WO_RSP, rxUuid, serviceUuid, onDataReceived, NULL);
+BleAdvertisingData data;
+
+// Setup NeoPixels
+const bool serpentine = true;   // set to true if neopixel matrix is wired in serpentine pattern
+const int PIXEL_COUNT=256;      // 16 x 16 neopixel matrix
+
+
+// Adafruit_NeoPixel matrix(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);
+//  see dotstar maxtrix creation above with same name, "matrix"
+
+int payloadNum;
+int myImage[PIXEL_COUNT];
+int myMatrix[PIXEL_COUNT];
+int imgData[3*PIXEL_COUNT+7];     // 3 bytes per pix for RGB color
+
 SYSTEM_MODE(SEMI_AUTOMATIC);     //Using BLE and not Wifi
 
 //  *****************   B E G I N    S E T U P    **********
@@ -80,6 +157,41 @@ void setup()
   // Set motionSensor pin as interrupt, assign interrupt function and set RISING mode
   attachInterrupt(motionSensor, detectsMovement, RISING);
   minDist = 2; maxDist = 650; minNP = 2; maxNP = 155;     // maxDist in cm, 1 meter = 100 cm, 39'ish inches & 1.1 yards 
+  // Initialize dotstar matrix (!neopixel) 
+  matrix.begin(); 
+  matrix.setBrightness(15);
+
+  Serial.printf("Starting up BLE Connection \n");
+  BLE.on();
+  BLE.addCharacteristic(txCharacteristic);
+  BLE.addCharacteristic(rxCharacteristic);
+  data.appendServiceUUID(serviceUuid);
+  BLE.advertise(&data);
+
+  Serial.printf("Argon BLE Address: %s\n",BLE.address().toString().c_str());
+
+  fillMyMatrix(myMatrix);
+
+  // Send rainbow test pattern to matrix to validate serpentine set correctly
+  for(j=0;j<PIXEL_COUNT;j++) {
+    if(serpentine) {
+      matrix.setPixelColor(myMatrix[j],rainbow[j%7]);
+      }
+      else {
+        matrix.setPixelColor(j,rainbow[j%7]);
+      }
+    matrix.show();
+    delay(FASTFILL);
+  }
+  matrix.show();
+  // delay(2000);                    // Pause a half second then clear
+  // clearMatrix();
+  clearMatrixByPix();
+  matrix.show();
+  // delay(10);
+// }
+
+// no void loop(), all action happens when data received from BLE
 
 }
 //  *****************   E N D    S E T U P    **********
@@ -150,7 +262,7 @@ void npSetUp()  {
 // }
 
 
-// function to read distance
+// interrupt function to read distance with LIDAR
 uint8_t distanceSingle(uint16_t *distance)  {
     myLidarLite.takeRange();                      // 1. Trigger range measurement.
     myLidarLite.waitForBusy();                    // 2. Wait for busyFlag to indicate device is idle.
@@ -227,4 +339,94 @@ void detectsMovement() {
  fairyLightsOn    = true;
  FLstartTimer     = true;
  FLlastTrigger    = millis();
+}
+// receive data from BLE and display image on neopixel matrix
+void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, void* context) {
+    //int pixelcount,pixelcolor;
+    int i,j;
+    int color;
+    int payloadLen;
+
+    Serial.printf("Received data from: %02X:%02X:%02X:%02X:%02X:%02X \n", peer.address()[0], peer.address()[1],peer.address()[2], peer.address()[3], peer.address()[4], peer.address()[5]);
+    for (i = 0; i < len; i++) {
+        Serial.printf("%02X",data[i]);
+    }
+    Serial.printf("\n\n Length = %i\n",len);
+
+
+    // BLE messages sent in 244 character chunks, below code stitches multiple 244 message payloads together
+    if(len == 244) {
+      for(i=0;i<244;i++){
+        imgData[payloadNum*244+i]=data[i];
+        Serial.printf("%i:0x%02X --- %i:0x%02X\n",i,data[i],payloadNum*244+i,imgData[payloadNum*244+i]);
+      }
+      payloadNum++;
+    }
+    else {
+      for(i=0;i<len-1;i++){
+        imgData[payloadNum*244+i]=data[i];
+        Serial.printf("%i:0x%02X --- %i:0x%02X\n",i,data[i],payloadNum*244+i,imgData[payloadNum*244+i]);
+      }
+      payloadLen = payloadNum*244+(len-1);
+
+      // once total message received determine color of each pixel and display to matrix
+      matrix.clear();
+      for (i=0;i<((payloadLen-7)/3);i++) {
+        j = 7+(i*3);
+        imgBuf[0] = imgData[j];
+        imgBuf[1] = imgData[j+1];
+        imgBuf[2] = imgData[j+2];
+        Serial.printf("%i: 0x%02X%02X%02X: \n",i,imgBuf[0],imgBuf[1],imgBuf[2]);
+        
+        color = imgBuf[0]<<16 | imgBuf[1]<<8 | imgBuf[2];      // R-G-B  Multiplying Blue by .8 to reduce light intensity --> stronger blue, I hope
+        // color = imgBuf[0]<<16 | imgBuf[1]<<8 | imgBuf[2];
+        //Serial.printf("byte %i, color %06X\n",i,color);
+        if(serpentine) {
+          matrix.setPixelColor(myMatrix[i],color);
+        }
+        else {
+          matrix.setPixelColor(i,color);
+        }
+        matrix.show();
+        delay(10);
+
+      }
+      Serial.printf("\n\n Payload Length = %i\n",payloadLen);
+      // matrix.show();
+      payloadNum = 0;
+    }
+}
+
+// 
+void fillMyMatrix(int *myMat) {
+  byte i;
+  byte j;
+
+  for(i=0;i<16;i++) {
+    for(j=0;j<16;j++) {
+      if((i%2) == 1) {
+        myMat[i*16+j] = i*16+j;
+      }
+      else {
+        myMat[i*16+j] = i*16+(15-j);
+      }
+    }
+  }
+  return;
+}
+
+//   clears 16x16 Dot Pixel Matrix (serpentine order) 
+void clearMatrix()  {
+  for(j=0;j<PIXEL_COUNT;j++) {
+    matrix.setPixelColor(myMatrix[j],0x000000);
+  }
+}
+
+//   clears 16x16 Dot Pixel Matrix (serpentine order) 
+void clearMatrixByPix()  {
+  for(j=0;j<PIXEL_COUNT;j++) {
+    matrix.setPixelColor(myMatrix[j],0x000000);
+    matrix.show();
+    delay(FASTFILL);
+  }
 }

@@ -4,7 +4,8 @@
 
 #line 1 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/U2_Main_Try3/src/U2_Main_Try3.ino"
 /*
- * Project:     U2Main.ini - Initial integration program for YouTwo!
+ * Project:     U2Main_Try3.ini - Initial integration program for YouTwo!
+      *** 12/8/21, 11:35   THIS IS THE CURRENT WORKING VERSION ***
  * Description: * TRY THREE * Integrates three programs, 
  * 1. U2_Ble..., 
  * 2. U2_PIR, U2 PIR Motion Sensor with interrupt triggers the 100 NeoPixel Fairy Lights
@@ -41,7 +42,8 @@ void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, 
 void fillMyMatrix(int *myMat);
 void clearMatrix();
 void clearMatrixByPix();
-#line 26 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/U2_Main_Try3/src/U2_Main_Try3.ino"
+int RGswap(int RGcolor);
+#line 27 "c:/Users/boyd/Documents/IoT/IoT_Capstone-IvanBoyd/U2_Main_Try3/src/U2_Main_Try3.ino"
 #include "Encoder.h"
 int timeSeconds = 10;
 #include "neopixel.h"
@@ -66,23 +68,26 @@ const int FLPIXPIN     = D8;                 // Fairy Light Pix Pin
 const int FLPIXEL_NUM  = 100;                // Fairy Light Pix Number 
 int   FLlow = 1, FLmed = 50, FLhigh = 145;   // FL (Fairy Light), NeoPix brightness 0-255, 145 is too bright for me 
 int   FLi, FLj;
-// int   timeSeconds = 10;            // FL (Fairy Light) 
+// int   timeSeconds = 10;                    // FL (Fairy Light) 
 Adafruit_NeoPixel fairyNP(FLPIXEL_NUM, FLPIXPIN, FAIRY_PIXEL_TYPE);
 bool fairyLightsOn = false;
 unsigned long FLnow         = millis();
 unsigned long FLlastTrigger = 0;
 bool          FLstartTimer  = false;
+int   FLbright = 100;                        // fairlight NP brightness 0-155, 145 bout high enuf
 
 // //                              ***  NEOPIXEL HEADER  ***
 const int NEOPIXPIN     = A3;
-const int NEOPIXEL_NUM  = 12;
+const int NEOPIXEL_NUM  = 13;
+const int   rgb_PixPin  = 3,
+            rgb_PixCnt  = 1;
 int   main_i, main_j;                                          // NeoPix brightness 0-155, 145 bout high enuf
 int   minNP = 0,          maxNP = 150;                         // lower/upper NP intensity
 int   low = 3,            med = 50,         high = 127;        // for NP light intensity - var to hold mapped value from dist
 int someColors[] = {0xFF0000, 0x0000FF, 0x8000080, 0xFFFF00, 0xFF0FF, 0x808080, 0xFFA500, 0xA52A2A, 0x008000, 0x808000};
 //                   //  RED,    BLUE,     PURPLE,     YELLOW,   MAGENTA,   GRAY,    ORANGE,  BROWN,    GREEN,   OLIVE
 Adafruit_NeoPixel NEO_Pix(NEOPIXEL_NUM, NEOPIXPIN, PIXEL_TYPE);
-
+// Adafruit_NeoPixel rgb_npPixels(rgb_PixCnt, rgb_PixPin, WS2811); // declare object
 //                              ***  LIDAR HEADER  ***
 LIDARLite_v4LED myLidarLite;
 uint8_t   newDistance,      NPintensity   = 0,  newNPintensity;
@@ -95,7 +100,7 @@ bool      inRange;
                                  //   Optional - D5, pin 5   White wire    LIDAR-Lite GPIOA (connected but not used at this point)
                                  //   Optional - D6, pin 6   Blue wire     LIDAR-Lite GPIOB (connected but not used at this point) 
 
-// Encoder Header 
+//                              ***  ENCODER HEADER  ***
 int  pinA     =  A5,          pinB      = A4,
      position = 0,            last_Pos  = 0; 
 int enc_P     = 0,            enc_Low   = 0,        enc_High  = 0,       //set enc to Pix Ring vars for Map function
@@ -164,14 +169,19 @@ BleAdvertisingData data;
 const bool serpentine = true;   // set to true if neopixel matrix is wired in serpentine pattern
 const int PIXEL_COUNT=256;      // 16 x 16 neopixel matrix
 
-
+//                              ***  BLE HEADER  ***
 // Adafruit_NeoPixel matrix(PIXEL_COUNT, PIXEL_PIN, PIXEL_TYPE);
 //  see dotstar maxtrix creation above with same name, "matrix"
-
+//  Header for BLE bluetooth image stuff
 int payloadNum;
 int myImage[PIXEL_COUNT];
 int myMatrix[PIXEL_COUNT];
 int imgData[3*PIXEL_COUNT+7];     // 3 bytes per pix for RGB color
+bool  ble_Projected = false;       //  clear after certain amount of time
+int   clear_BLEprojected_time = 4;
+int   ble_Project_Timer         = millis();
+int   ble_last_Timer            = millis();
+
 
 SYSTEM_MODE(SEMI_AUTOMATIC); //Using BLE and not Wifi
 
@@ -201,7 +211,8 @@ void setup() {
   BLE.addCharacteristic(rxCharacteristic);
   data.appendServiceUUID(serviceUuid);
   BLE.advertise(&data);
-
+  ble_Project_Timer = millis();
+  ble_last_Timer    = millis();
   Serial.printf("Argon BLE Address: %s\n",BLE.address().toString().c_str());
 
   fillMyMatrix(myMatrix);
@@ -215,7 +226,7 @@ void setup() {
         matrix.setPixelColor(j,rainbow[j%7]);
       }
     matrix.show();
-    delay(FASTFILL);
+    // delay(FASTFILL);
   }
   matrix.show();
   // delay(2000);                    // Pause a half second then clear
@@ -230,6 +241,16 @@ void setup() {
 void loop() {
   flSub();        // turns on FL's when PIR sensor is activated
   lidarSub();
+  ble_Project_Timer = millis();
+  if (ble_Projected && (ble_Project_Timer - ble_last_Timer > (5000))) {           // time to clear the BLE matrix
+  // ble_Project_Timer = millis();
+  // Turn off the LED after the number of seconds defined in the timeSeconds variable
+    ble_last_Timer = millis();
+    ble_Projected = false;
+    // turn off BLE dotstar 256 matrix pixels
+    clearMatrix();
+    matrix.show();
+  }
 }
 //  *****************  E N D     M A I N    V O I D    L O O P    **********
 
@@ -261,7 +282,7 @@ void lidarSub()    {
     Serial.printf("Mapping Dist to NPs, Dist: %i NPdist: %i NPintensity: %i minDist: %i maxDist %i minNP %i maxNP %i  \n", distance, NPdistance, NPintensity, minDist, maxDist, minNP, maxNP);
     NEO_Pix.setBrightness(NPintensity); 
     for (i = 0; i < NEOPIXEL_NUM; i++)  {
-      NEO_Pix.setPixelColor(i, 0xFF0000);                                // set to red
+      NEO_Pix.setPixelColor(i, RGswap(0xFF0000));                                // set to red
     }
     NEO_Pix.show(); 
     if (newDistance) {
@@ -297,6 +318,7 @@ void npSetUp()  {
 void flSub() {
     // fairyNP.begin();
   FLnow = millis();               // Current time
+  // ble_Project_Timer = millis();
   // Turn off the LED after the number of seconds defined in the timeSeconds variable
   if(FLstartTimer && (FLnow - FLlastTrigger > (timeSeconds*1000))) {
     // Serial.println("Motion stopped...");
@@ -312,7 +334,7 @@ void flSub() {
   if (fairyLightsOn)  {
     digitalWrite(GRNPIN, LOW);
     // fairyNP.setBrightness(random(1,4));
-    fairyNP.setBrightness(random(1,new_Pix_P));
+    fairyNP.setBrightness(random(5,FLbright));
     fairyNP.setPixelColor(random(0,100), random(0,255), random(0,255), random(0,255));
     fairyNP.show();
     delay(random(50,100));        // *** needs to be embedded in timer function
@@ -404,15 +426,17 @@ void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, 
         }
         matrix.show();
         delay(10);
-
+        ble_Projected = true;
+        ble_last_Timer = millis();
       }
       Serial.printf("\n\n Payload Length = %i\n",payloadLen);
       // matrix.show();
       payloadNum = 0;
     }
 }
-
-// 
+// receive data from BLE and display image on neopixel matrix
+// *** END *** void onDataReceived(const uint8_t* data, size_t len, const BlePeerDevice& peer, void* context) {
+ 
 void fillMyMatrix(int *myMat) {
   byte i;
   byte j;
@@ -442,6 +466,18 @@ void clearMatrixByPix()  {
   for(j=0;j<PIXEL_COUNT;j++) {
     matrix.setPixelColor(myMatrix[j],0x000000);
     matrix.show();
-    delay(FASTFILL);
+    // delay(FASTFILL);
   }
+}
+
+// pixel.setPexelColor(0, RGswap(swap(color));     // where 0 is pixel # and color is swap from old (GRB) to new (RGB)
+int RGswap(int RGcolor)  {
+  int GRcolor, red, green, blue;
+
+  red   = RGcolor >> 16;
+  green = (RGcolor >> 8) & 0xFF;
+  blue  = RGcolor & 0xFF;
+
+  GRcolor = green << 16 | red << 8 | blue;
+  return GRcolor;
 }

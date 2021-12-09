@@ -66,7 +66,7 @@ int   dBugDel = 300;
 //                              ***  FAIRY LIGHT PIXEL HEADER  ***
 const int FLPIXPIN     = D8;                 // Fairy Light Pix Pin 
 const int FLPIXEL_NUM  = 100;                // Fairy Light Pix Number 
-int   FLlow = 1, FLmed = 50, FLhigh = 145;   // FL (Fairy Light), NeoPix brightness 0-255, 145 is too bright for me 
+int   FLlow = 1, FLmed = 50, FLhigh = 100;   // FL (Fairy Light), NeoPix brightness 0-255, 145 is too bright for me 
 int   FLi, FLj;
 // int   timeSeconds = 10;                    // FL (Fairy Light) 
 Adafruit_NeoPixel fairyNP(FLPIXEL_NUM, FLPIXPIN, FAIRY_PIXEL_TYPE);
@@ -74,11 +74,11 @@ bool fairyLightsOn = false;
 unsigned long FLnow         = millis();
 unsigned long FLlastTrigger = 0;
 bool          FLstartTimer  = false;
-int   FLbright = 100;                        // fairlight NP brightness 0-155, 145 bout high enuf
+int   FLbright = 70;                        // fairlight NP brightness 0-155, 145 bout high enuf
 
 // //                              ***  NEOPIXEL HEADER  ***
 const int NEOPIXPIN     = A3;
-const int NEOPIXEL_NUM  = 13;
+const int NEOPIXEL_NUM  = 20;           // ring is 1-12 (0-11) NP's are 13-20
 const int   rgb_PixPin  = 3,
             rgb_PixCnt  = 1;
 int   main_i, main_j;                                          // NeoPix brightness 0-155, 145 bout high enuf
@@ -225,13 +225,12 @@ void setup() {
       else {
         matrix.setPixelColor(j,rainbow[j%7]);
       }
-    matrix.show();
-    // delay(FASTFILL);
+    // matrix.show();
+    // delay(1500);
   }
   matrix.show();
-  // delay(2000);                    // Pause a half second then clear
-  // clearMatrix();
-  clearMatrixByPix();
+  delay(1500);                    // Pause a half second then clear
+  clearMatrix();
   matrix.show();
   // delay(10);
 }
@@ -242,7 +241,7 @@ void loop() {
   flSub();        // turns on FL's when PIR sensor is activated
   lidarSub();
   ble_Project_Timer = millis();
-  if (ble_Projected && (ble_Project_Timer - ble_last_Timer > (5000))) {           // time to clear the BLE matrix
+  if (ble_Projected && (ble_Project_Timer - ble_last_Timer > (10000))) {           // time to clear the BLE matrix
   // ble_Project_Timer = millis();
   // Turn off the LED after the number of seconds defined in the timeSeconds variable
     ble_last_Timer = millis();
@@ -369,7 +368,7 @@ void flSetUp()  {
   for (FLi = 0; FLi < 100; FLi++) {
     fairyNP.setPixelColor(FLi, random(0,255),  random(0,255),  random(0,255));
     fairyNP.show();
-    delay(30);
+    delay(5);
   }
   // fairyNP.show();
   // delay(2000);
